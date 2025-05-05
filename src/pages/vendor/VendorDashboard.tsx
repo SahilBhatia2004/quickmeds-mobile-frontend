@@ -5,7 +5,7 @@ import MobileLayout from "@/components/layout/MobileLayout";
 import PageHeader from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, TruckFront } from "lucide-react";
+import { Package, Truck } from "lucide-react";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
@@ -45,7 +45,7 @@ const VendorDashboard = () => {
           <Card>
             <CardHeader className="p-3">
               <CardTitle className="text-sm flex items-center">
-                <TruckFront className="mr-2 h-4 w-4" />
+                <Truck className="mr-2 h-4 w-4" />
                 Orders
               </CardTitle>
             </CardHeader>
