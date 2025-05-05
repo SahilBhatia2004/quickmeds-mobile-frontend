@@ -10,10 +10,12 @@ import { useCart } from '@/hooks/use-cart';
 import { Clock, MapPin, CreditCard, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import { useAddressStore } from '@/hooks/use-address';
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { total, items, clearCart } = useCart();
+  const { addresses, setDefaultAddress } = useAddressStore();
   
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,21 +23,25 @@ const CheckoutPage = () => {
   const deliveryFee = total > 0 ? 2.99 : 0;
   const grandTotal = total + deliveryFee;
 
-  // Example addresses (in a real app, these would come from a backend)
-  const addresses = [
-    { id: '1', label: 'Home', address: '123 Main St, Apt 4, New York, NY 10001', isDefault: true },
-    { id: '2', label: 'Work', address: '456 Office Ave, Suite 200, New York, NY 10002', isDefault: false },
-  ];
-
-  const [selectedAddress, setSelectedAddress] = useState(addresses[0].id);
+  const [selectedAddress, setSelectedAddress] = useState(() => {
+    // Find default address or use the first one
+    const defaultAddress = addresses.find(addr => addr.isDefault);
+    return defaultAddress?.id || (addresses.length > 0 ? addresses[0].id : '');
+  });
 
   const handleAddressSelect = (id: string) => {
     setSelectedAddress(id);
+    setDefaultAddress(id);
   };
 
   const handlePlaceOrder = () => {
     if (items.length === 0) {
       toast.error('Your cart is empty');
+      return;
+    }
+    
+    if (!selectedAddress) {
+      toast.error('Please select a delivery address');
       return;
     }
     
@@ -75,33 +81,49 @@ const CheckoutPage = () => {
           </div>
           
           <div className="space-y-2">
-            {addresses.map((address) => (
-              <div 
-                key={address.id}
-                className={`border rounded-lg p-3 ${selectedAddress === address.id ? 'border-primary bg-blue-50' : ''}`}
-                onClick={() => handleAddressSelect(address.id)}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-medium text-sm">
-                      {address.label} 
-                      {address.isDefault && (
-                        <span className="ml-2 px-1 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                          Default
-                        </span>
+            {addresses.length > 0 ? (
+              addresses.map((address) => (
+                <div 
+                  key={address.id}
+                  className={`border rounded-lg p-3 ${selectedAddress === address.id ? 'border-primary bg-blue-50' : ''}`}
+                  onClick={() => handleAddressSelect(address.id)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-sm">
+                        {address.label} 
+                        {address.isDefault && (
+                          <span className="ml-2 px-1 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                            Default
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">{address.address}</p>
+                      {address.details && (
+                        <p className="text-xs text-gray-500 mt-0.5">{address.details}</p>
                       )}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">{address.address}</p>
+                    </div>
+                    <RadioGroupItem 
+                      value={address.id} 
+                      id={`address-${address.id}`} 
+                      checked={selectedAddress === address.id}
+                      className="mt-1"
+                    />
                   </div>
-                  <RadioGroupItem 
-                    value={address.id} 
-                    id={`address-${address.id}`} 
-                    checked={selectedAddress === address.id}
-                    className="mt-1"
-                  />
                 </div>
+              ))
+            ) : (
+              <div className="text-center p-6 border rounded-lg border-dashed">
+                <p className="text-sm text-gray-600 mb-3">No saved addresses</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleAddNewAddress}
+                >
+                  Add New Address
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -207,7 +229,7 @@ const CheckoutPage = () => {
         <Button 
           onClick={handlePlaceOrder} 
           className="w-full"
-          disabled={isProcessing}
+          disabled={isProcessing || !selectedAddress}
         >
           {isProcessing ? "Processing..." : `Pay $${grandTotal.toFixed(2)}`}
         </Button>

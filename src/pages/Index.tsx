@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { CategoryItem, medicineCategories } from "@/data/categories";
 import { useCategoryProducts, usePopularProducts } from "@/hooks/use-products";
 import { toast } from "sonner";
+import { useAddressStore } from "@/hooks/use-address";
 
 const Index = () => {
   const navigate = useNavigate();
   const popularProducts = usePopularProducts();
+  const { selectedAddress } = useAddressStore();
   
   const handleProductClick = (id: string) => {
     navigate(`/product/${id}`);
@@ -41,7 +43,11 @@ const Index = () => {
               className="flex items-center text-sm font-medium"
             >
               <MapPin size={16} className="mr-1 text-primary" />
-              123 Main St
+              {selectedAddress ? (
+                <span className="line-clamp-1">{selectedAddress.label}: {selectedAddress.address.split(',')[0]}</span>
+              ) : (
+                <span>Set delivery address</span>
+              )}
               <span className="ml-1 text-primary">▼</span>
             </button>
           </div>
