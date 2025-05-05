@@ -9,7 +9,23 @@ import { useLocationStore } from "@/hooks/use-location";
 import DeliveryMap from "@/components/maps/DeliveryMap";
 import { toast } from "sonner";
 
-// We'll replace mock data with real-time geocoding in production
+// Debounce helper to prevent too many API calls during typing
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const navigate = useNavigate();
   const { userLocation, setUserLocation } = useLocationStore();
@@ -25,39 +41,54 @@ const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) 
     address: string;
   } | null>(null);
   
-  // Geocoding function (using Google Maps Geocoding API)
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.length > 2) {
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  
+  // Geocoding function
+  useEffect(() => {
+    const geocodeAddress = async () => {
+      if (debouncedSearchQuery.length < 3) {
+        setSearchResults([]);
+        return;
+      }
+      
       try {
-        // In production, this will use Google Maps Geocoding API
-        // For now, we'll simulate results for development
-        console.log("Searching for address:", query);
+        // In a production app, this would be an API call to your backend
+        // The backend would use Google's Geocoding API securely
+        console.log("Searching for address:", debouncedSearchQuery);
         
-        // Simulated results for development
-        const mockResults = [
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Generate more realistic but still simulated results
+        // In a real app, these would come from Google Maps API via your backend
+        const simulatedResults = [
           {
-            description: `${query} - Location 1`,
+            description: `${debouncedSearchQuery}, Main Street`,
             lat: 40.7128 + (Math.random() * 0.02 - 0.01),
             lng: -74.006 + (Math.random() * 0.02 - 0.01)
           },
           {
-            description: `${query} - Location 2`,
+            description: `${debouncedSearchQuery}, Downtown`,
+            lat: 40.7128 + (Math.random() * 0.02 - 0.01),
+            lng: -74.006 + (Math.random() * 0.02 - 0.01)
+          },
+          {
+            description: `${debouncedSearchQuery}, Midtown`,
             lat: 40.7128 + (Math.random() * 0.02 - 0.01),
             lng: -74.006 + (Math.random() * 0.02 - 0.01)
           }
         ];
         
-        setSearchResults(mockResults);
+        setSearchResults(simulatedResults);
       } catch (error) {
         console.error("Error searching for address:", error);
         toast.error("Error searching for address. Please try again.");
         setSearchResults([]);
       }
-    } else {
-      setSearchResults([]);
-    }
-  };
+    };
+    
+    geocodeAddress();
+  }, [debouncedSearchQuery]);
   
   const selectLocation = (location: { description: string; lat: number; lng: number }) => {
     setSelectedLocation({
@@ -81,14 +112,27 @@ const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) 
     }
   };
   
-  const handleMapClick = (location: { lat: number; lng: number }) => {
-    // In production, we would use reverse geocoding to get the address
-    const mockAddress = `Location at ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
-    setSelectedLocation({
-      ...location,
-      address: mockAddress
-    });
-    setSearchQuery(mockAddress);
+  const handleMapClick = async (location: { lat: number; lng: number }) => {
+    try {
+      // In a real app, this would use reverse geocoding via your backend
+      console.log("Reverse geocoding for:", location);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Create a mock address based on coordinates
+      // In production, this would come from Google's Reverse Geocoding API
+      const mockAddress = `Location near ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+      
+      setSelectedLocation({
+        ...location,
+        address: mockAddress
+      });
+      setSearchQuery(mockAddress);
+    } catch (error) {
+      console.error("Error in reverse geocoding:", error);
+      toast.error("Could not determine address for this location");
+    }
   };
   
   if (compact) {
@@ -115,7 +159,7 @@ const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) 
               <Input
                 placeholder="Search for your location"
                 value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="mb-2"
               />
               {searchResults.length > 0 && (
@@ -164,7 +208,7 @@ const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) 
           <Input
             placeholder="Search for your location"
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="mb-2"
           />
           {searchResults.length > 0 && (

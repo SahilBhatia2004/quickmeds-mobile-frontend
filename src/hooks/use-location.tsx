@@ -29,8 +29,7 @@ export interface LocationState {
   fetchNearbyPharmacies: (lat: number, lng: number) => Promise<void>;
 }
 
-// Initial data for development - in production this would be empty
-// and populated from API calls
+// Start with empty pharmacies - they will be fetched from API
 const initialPharmacies: PharmacyLocation[] = [];
 
 export const useLocationStore = create<LocationState>()(
@@ -59,53 +58,37 @@ export const useLocationStore = create<LocationState>()(
 
       fetchNearbyPharmacies: async (lat, lng) => {
         try {
-          // In a real app, this would be an API call to your backend
+          // In a production app, this would be an API call to your backend
           console.log(`Fetching pharmacies near ${lat}, ${lng}`);
           
-          // For development, simulate API response with mock data
-          // In production, replace with actual API call
-          
-          // Simulate network delay
+          // Simulate a network request to get nearby pharmacies
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Mock data with positions relative to user's location
-          const mockPharmacies: PharmacyLocation[] = [
-            {
-              id: "pharm1",
-              name: "Metro Pharmacy",
-              address: "123 Main St, New York",
-              lat: lat + 0.005, // ~500m north
-              lng: lng,
-              isOpen: true,
-              deliveryRadius: 3000, // 3km
-              phone: "555-123-4567",
-              email: "contact@metropharmacy.com"
-            },
-            {
-              id: "pharm2",
-              name: "Central Medications",
-              address: "456 Park Ave, New York",
-              lat: lat, 
-              lng: lng + 0.007, // ~700m east
-              isOpen: true,
-              deliveryRadius: 2500, // 2.5km
-              phone: "555-987-6543",
-              email: "info@centralmed.com"
-            },
-            {
-              id: "pharm3",
-              name: "QuickMed Pharmacy",
-              address: "789 Broadway, New York",
-              lat: lat - 0.003, // ~300m south
-              lng: lng - 0.004, // ~400m west
-              isOpen: false, // Closed pharmacy
-              deliveryRadius: 2000, // 2km
-              phone: "555-456-7890",
-              email: "help@quickmed.com"
-            }
-          ];
+          // This would be replaced with real API data from your backend
+          // The backend would query pharmacies within the specified radius
+          // For now, we generate random nearby locations to simulate real data
+          const pharmacies: PharmacyLocation[] = Array.from({ length: 3 + Math.floor(Math.random() * 4) }, (_, i) => {
+            // Create random offsets (at most 0.01 degrees, roughly 1km)
+            const latOffset = (Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1);
+            const lngOffset = (Math.random() * 0.01) * (Math.random() > 0.5 ? 1 : -1);
+            
+            // Random delivery radius between 1km and 5km
+            const deliveryRadius = Math.floor(Math.random() * 4000) + 1000;
+            
+            return {
+              id: `pharm${i+1}_${Date.now()}`,
+              name: `Pharmacy ${i+1}`,
+              address: `${Math.floor(Math.random() * 1000) + 1} Street Name, City`,
+              lat: lat + latOffset,
+              lng: lng + lngOffset,
+              isOpen: Math.random() > 0.2, // 80% chance of being open
+              deliveryRadius: deliveryRadius,
+              phone: `+1-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+              email: `pharmacy${i+1}@example.com`
+            };
+          });
           
-          set({ nearbyPharmacies: mockPharmacies });
+          set({ nearbyPharmacies: pharmacies });
           
         } catch (error) {
           console.error("Error fetching nearby pharmacies:", error);

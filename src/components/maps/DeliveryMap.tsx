@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { GoogleMap, useLoadScript, Marker, Circle } from "@react-google-maps/api";
+import { toast } from "sonner";
 
 const libraries = ["places"];
 const mapContainerStyle = {
@@ -15,6 +16,7 @@ const defaultCenter = {
 interface DeliveryMapProps {
   pharmacyLocation?: { lat: number; lng: number };
   customerLocation?: { lat: number; lng: number };
+  deliveryPersonLocation?: { lat: number; lng: number };
   deliveryRadius?: number; // in meters
   height?: string;
   onMapClick?: (location: { lat: number; lng: number }) => void;
@@ -23,16 +25,36 @@ interface DeliveryMapProps {
 const DeliveryMap: React.FC<DeliveryMapProps> = ({
   pharmacyLocation,
   customerLocation,
+  deliveryPersonLocation,
   deliveryRadius = 3000, // Default 3km radius
   height = "400px",
   onMapClick,
 }) => {
   const [mapCenter, setMapCenter] = useState(customerLocation || pharmacyLocation || defaultCenter);
   const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
 
-  // In a real app, you would use an environment variable for the API key
+  // This would ideally come from an environment variable or be fetched securely
+  useEffect(() => {
+    // In a real app, fetch this from your backend
+    const storedApiKey = localStorage.getItem("google_maps_api_key");
+    if (storedApiKey) {
+      setGoogleMapsApiKey(storedApiKey);
+    } else {
+      // For development only - in production, you should never expose API keys in the frontend
+      // Instead, create a backend proxy endpoint to handle map requests
+      const apiKey = prompt("Please enter your Google Maps API key to continue. In production, this would be configured securely on the server side.");
+      if (apiKey) {
+        localStorage.setItem("google_maps_api_key", apiKey);
+        setGoogleMapsApiKey(apiKey);
+      } else {
+        toast.error("Google Maps API key is required for location features");
+      }
+    }
+  }, []);
+  
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY",
+    googleMapsApiKey: googleMapsApiKey,
     libraries: libraries as any,
   });
 
@@ -50,6 +72,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
         },
         () => {
           console.log("Error: The Geolocation service failed.");
+          toast.error("Unable to get your location. Please enable location services.");
         }
       );
     }
@@ -64,7 +87,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     }
   };
 
-  if (loadError) return <div>Error loading maps. Please check your internet connection.</div>;
+  if (loadError) return <div className="p-4 text-center text-red-500">Error loading maps. Please check your internet connection and API key.</div>;
   if (!isLoaded) return <div className="h-full flex items-center justify-center">Loading maps...</div>;
 
   return (
@@ -83,6 +106,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
                 url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
                 scaledSize: new window.google.maps.Size(30, 30),
               }}
+              title="Pharmacy Location"
             />
             <Circle
               center={pharmacyLocation}
@@ -105,6 +129,18 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
               url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
               scaledSize: new window.google.maps.Size(30, 30),
             }}
+            title="Your Location"
+          />
+        )}
+        
+        {deliveryPersonLocation && (
+          <Marker
+            position={deliveryPersonLocation}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+              scaledSize: new window.google.maps.Size(30, 30),
+            }}
+            title="Delivery Person"
           />
         )}
         
@@ -115,6 +151,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
               url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
               scaledSize: new window.google.maps.Size(30, 30),
             }}
+            title="Your Current Location"
           />
         )}
       </GoogleMap>

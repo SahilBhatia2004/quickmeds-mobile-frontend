@@ -16,23 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-// Type for medicine items
-interface MedicineItem {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  lowStock: boolean;
-  description?: string;
-  category?: string;
-  requiresPrescription?: boolean;
-}
+import { MedicineItem, useInventoryStore } from "@/hooks/use-inventory";
+import { useAuth } from "@/hooks/use-auth";
 
 const VendorInventory = () => {
-  const [inventory, setInventory] = useState<MedicineItem[]>([]);
+  const { user } = useAuth();
+  const { items, loading, fetchInventory, addMedicine, updateMedicine, updateStock } = useInventoryStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MedicineItem | null>(null);
   
@@ -47,89 +37,28 @@ const VendorInventory = () => {
     requiresPrescription: false
   });
 
-  // In a real app, this would fetch data from an API
+  // Fetch inventory when component mounts
   useEffect(() => {
-    const fetchInventory = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock inventory data - in a real app this would come from an API
-        const mockInventory: MedicineItem[] = [
-          { 
-            id: "med1", 
-            name: "Paracetamol 500mg", 
-            price: 5.99, 
-            stock: 120, 
-            lowStock: false,
-            description: "For pain relief and fever reduction",
-            category: "Pain Relief",
-            requiresPrescription: false
-          },
-          { 
-            id: "med2", 
-            name: "Ibuprofen 200mg", 
-            price: 6.99, 
-            stock: 85, 
-            lowStock: false,
-            description: "Anti-inflammatory medication",
-            category: "Pain Relief",
-            requiresPrescription: false
-          },
-          { 
-            id: "med3", 
-            name: "Cetirizine 10mg", 
-            price: 8.49, 
-            stock: 12, 
-            lowStock: true,
-            description: "Antihistamine for allergy relief",
-            category: "Allergy",
-            requiresPrescription: false 
-          },
-          { 
-            id: "med4", 
-            name: "Amoxicillin 250mg", 
-            price: 12.99, 
-            stock: 0, 
-            lowStock: true,
-            description: "Antibiotic for bacterial infections",
-            category: "Antibiotics",
-            requiresPrescription: true
-          }
-        ];
-        
-        setInventory(mockInventory);
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
-        toast.error("Failed to load inventory. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchInventory();
-  }, []);
+    if (user?.id && user.isVendor) {
+      fetchInventory(user.id);
+    }
+  }, [user, fetchInventory]);
 
-  const filteredInventory = inventory.filter(item => 
+  const filteredInventory = items.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (item.category && item.category.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const updateStock = (productId: string, newStock: number) => {
-    setInventory(inventory.map(item => 
-      item.id === productId 
-        ? { ...item, stock: newStock, lowStock: newStock < 15 } 
-        : item
-    ));
-    
-    toast.success("Inventory updated");
+  const handleUpdateStock = async (productId: string, newStock: number) => {
+    if (newStock >= 0) {
+      await updateStock(productId, newStock);
+    }
   };
 
   const openAddDialog = () => {
     setEditingItem(null);
     setMedicineForm({
-      id: `med${Date.now()}`,
+      id: "",
       name: "",
       price: 0,
       stock: 0,
@@ -149,7 +78,7 @@ const VendorInventory = () => {
       stock: item.stock,
       description: item.description || "",
       category: item.category || "",
-      requiresPrescription: item.requiresPrescription || false
+      requiresPrescription: item.requiresPrescription
     });
     setDialogOpen(true);
   };
@@ -171,30 +100,47 @@ const VendorInventory = () => {
     });
   };
 
-  const saveMedicine = () => {
+  const saveMedicine = async () => {
     if (!medicineForm.name || medicineForm.price <= 0) {
       toast.error("Please provide a name and valid price");
       return;
     }
 
-    const updatedMedicine = {
-      ...medicineForm,
-      lowStock: medicineForm.stock < 15
-    };
-
-    if (editingItem) {
-      // Update existing item
-      setInventory(inventory.map(item => 
-        item.id === editingItem.id ? updatedMedicine : item
-      ));
-      toast.success("Medicine updated successfully");
-    } else {
-      // Add new item
-      setInventory([...inventory, updatedMedicine]);
-      toast.success("Medicine added to inventory");
+    try {
+      if (editingItem) {
+        // Update existing item
+        await updateMedicine(editingItem.id, {
+          name: medicineForm.name,
+          price: medicineForm.price,
+          stock: medicineForm.stock,
+          description: medicineForm.description,
+          category: medicineForm.category,
+          requiresPrescription: medicineForm.requiresPrescription,
+          vendorId: user!.id
+        });
+      } else {
+        // Add new item
+        if (!user || !user.isVendor) {
+          toast.error("You must be logged in as a vendor to add medicines");
+          return;
+        }
+        
+        await addMedicine({
+          name: medicineForm.name,
+          price: medicineForm.price,
+          stock: medicineForm.stock,
+          description: medicineForm.description,
+          category: medicineForm.category,
+          requiresPrescription: medicineForm.requiresPrescription,
+          vendorId: user.id
+        });
+      }
+      
+      setDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving medicine:", error);
+      toast.error("Failed to save medicine. Please try again.");
     }
-
-    setDialogOpen(false);
   };
 
   return (
@@ -217,7 +163,7 @@ const VendorInventory = () => {
         </div>
 
         <div className="space-y-2">
-          {isLoading ? (
+          {loading ? (
             // Loading skeleton
             [...Array(4)].map((_, i) => (
               <div
@@ -248,7 +194,7 @@ const VendorInventory = () => {
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
                     <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-gray-500">${item.price.toFixed(2)}</div>
+                    <div className="text-sm text-gray-500">₹{item.price.toFixed(2)}</div>
                     {item.category && (
                       <div className="text-xs text-gray-400 mt-1">{item.category}</div>
                     )}
@@ -287,7 +233,7 @@ const VendorInventory = () => {
                       variant="outline"
                       onClick={() => {
                         if (item.stock > 0) {
-                          updateStock(item.id, item.stock - 1);
+                          handleUpdateStock(item.id, item.stock - 1);
                         }
                       }}
                       disabled={item.stock <= 0}
@@ -298,7 +244,7 @@ const VendorInventory = () => {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => updateStock(item.id, item.stock + 1)}
+                      onClick={() => handleUpdateStock(item.id, item.stock + 1)}
                     >
                       +
                     </Button>
@@ -331,7 +277,7 @@ const VendorInventory = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price ($)</Label>
+                  <Label htmlFor="price">Price (₹)</Label>
                   <Input
                     id="price"
                     name="price"
