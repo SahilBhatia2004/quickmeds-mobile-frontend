@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Clock } from "lucide-react";
-import { useLocationStore, isWithinDeliveryRadius } from '@/hooks/use-location';
+import { useLocationStore, calculateDistance } from '@/hooks/use-location';
 
 const NearbyPharmacies = () => {
   const { userLocation, nearbyPharmacies } = useLocationStore();
@@ -12,22 +12,20 @@ const NearbyPharmacies = () => {
     if (userLocation) {
       const pharmaciesInRange = nearbyPharmacies
         .filter(pharmacy => 
-          isWithinDeliveryRadius(
+          calculateDistance(
             userLocation.lat,
             userLocation.lng,
             pharmacy.lat,
-            pharmacy.lng,
-            pharmacy.deliveryRadius
-          )
+            pharmacy.lng
+          ) <= pharmacy.deliveryRadius
         )
         .map(pharmacy => {
           // Calculate distance in kilometers with proper type handling
-          const distanceInMeters = isWithinDeliveryRadius(
-            userLocation.lat,
-            userLocation.lng,
-            pharmacy.lat,
-            pharmacy.lng,
-            Infinity
+          const distanceInMeters = calculateDistance(
+            userLocation.lat, 
+            userLocation.lng, 
+            pharmacy.lat, 
+            pharmacy.lng
           );
           
           // Convert to km with one decimal place
