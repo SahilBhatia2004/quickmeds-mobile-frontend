@@ -1,21 +1,49 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProductById } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
+import { useLocationStore, isWithinDeliveryRadius } from "@/hooks/use-location";
 import MobileLayout from "@/components/layout/MobileLayout";
 import PageHeader from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, MapPin } from "lucide-react";
+import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
   const product = useProductById(productId);
   const { addItem } = useCart();
   const navigate = useNavigate();
+  const { userLocation, nearbyPharmacies } = useLocationStore();
   
-  const [quantity, setQuantity] = React.useState(1);
+  const [quantity, setQuantity] = useState(1);
+  const [availablePharmacies, setAvailablePharmacies] = useState<string[]>([]);
+  
+  // Check which pharmacies have this product available
+  useEffect(() => {
+    if (product && userLocation) {
+      // In a real app, this would be a backend API call
+      // For now, we'll simulate by randomly determining availability
+      const pharmaciesWithProduct = nearbyPharmacies
+        .filter(pharmacy => 
+          // Only include open pharmacies
+          pharmacy.isOpen && 
+          // Check if user is within delivery radius
+          isWithinDeliveryRadius(
+            userLocation.lat, 
+            userLocation.lng, 
+            pharmacy.lat, 
+            pharmacy.lng, 
+            pharmacy.deliveryRadius
+          )
+        )
+        .map(pharmacy => pharmacy.name);
+      
+      setAvailablePharmacies(pharmaciesWithProduct);
+    }
+  }, [product, userLocation, nearbyPharmacies]);
   
   if (!product) {
     return (
@@ -29,14 +57,25 @@ const ProductDetail = () => {
   }
   
   const handleAddToCart = () => {
+    if (!userLocation) {
+      toast.error("Please set your delivery location first");
+      navigate("/address");
+      return;
+    }
+    
+    if (availablePharmacies.length === 0) {
+      toast.error("This product is not available at any nearby pharmacy");
+      return;
+    }
+    
     addItem(product, quantity);
-    // Optionally navigate to cart
-    // navigate('/cart');
   };
   
   const handleQuantityChange = (change: number) => {
     setQuantity(Math.max(1, quantity + change));
   };
+  
+  const isAvailable = availablePharmacies.length > 0;
   
   return (
     <MobileLayout>
@@ -79,9 +118,9 @@ const ProductDetail = () => {
             )}
             
             <Badge 
-              className={product.inStock ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+              className={isAvailable ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
             >
-              {product.inStock ? "In Stock" : "Out of Stock"}
+              {isAvailable ? "Available Nearby" : "Not Available Nearby"}
             </Badge>
           </div>
           
@@ -99,12 +138,33 @@ const ProductDetail = () => {
             )}
           </div>
           
+          {userLocation && (
+            <div className="flex items-center text-sm text-gray-600 mb-4">
+              <MapPin className="h-4 w-4 mr-1" />
+              <span className="truncate">{userLocation.address}</span>
+            </div>
+          )}
+          
+          {availablePharmacies.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-1">Available at:</h3>
+              <div className="text-sm text-gray-600">
+                {availablePharmacies.map((pharmacy, index) => (
+                  <div key={index} className="flex items-center mb-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    {pharmacy}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="mb-6">
             <h2 className="font-medium mb-1">Description</h2>
             <p className="text-sm text-gray-700">{product.description}</p>
           </div>
           
-          {product.inStock && (
+          {isAvailable && (
             <div className="border-t pt-4">
               <h3 className="font-medium mb-2">Quantity</h3>
               <div className="flex items-center mb-4">
@@ -136,6 +196,7 @@ const ProductDetail = () => {
             <Button 
               className="w-full"
               onClick={() => navigate('/upload-prescription')}
+              disabled={!isAvailable}
             >
               Upload Prescription
             </Button>
@@ -144,10 +205,10 @@ const ProductDetail = () => {
           <Button 
             className="w-full flex items-center justify-center"
             onClick={handleAddToCart}
-            disabled={!product.inStock}
+            disabled={!isAvailable}
           >
             <ShoppingCart className="mr-2" size={18} />
-            {product.inStock ? "Add to Cart" : "Out of Stock"}
+            {isAvailable ? "Add to Cart" : "Not Available Nearby"}
           </Button>
         )}
       </div>
