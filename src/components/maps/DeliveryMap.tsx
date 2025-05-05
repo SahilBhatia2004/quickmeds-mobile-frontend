@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GoogleMap, useLoadScript, Marker, Circle } from "@react-google-maps/api";
 
 const libraries = ["places"];
@@ -27,14 +27,33 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
   height = "400px",
   onMapClick,
 }) => {
-  const [mapCenter, setMapCenter] = useState(pharmacyLocation || defaultCenter);
+  const [mapCenter, setMapCenter] = useState(customerLocation || pharmacyLocation || defaultCenter);
+  const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
 
-  // In a real app, you would use an environment variable or a secret manager
-  // for the API key. This is just a placeholder and will need to be replaced.
+  // In a real app, you would use an environment variable for the API key
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: "YOUR_GOOGLE_MAPS_API_KEY",
     libraries: libraries as any,
   });
+
+  // Get user's current location
+  useEffect(() => {
+    if (navigator.geolocation && !customerLocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserPosition(pos);
+          setMapCenter(pos);
+        },
+        () => {
+          console.log("Error: The Geolocation service failed.");
+        }
+      );
+    }
+  }, [customerLocation]);
 
   const handleMapClick = (event: google.maps.MapMouseEvent) => {
     if (onMapClick && event.latLng) {
@@ -45,7 +64,7 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
     }
   };
 
-  if (loadError) return <div>Error loading maps</div>;
+  if (loadError) return <div>Error loading maps. Please check your internet connection.</div>;
   if (!isLoaded) return <div className="h-full flex items-center justify-center">Loading maps...</div>;
 
   return (
@@ -84,6 +103,16 @@ const DeliveryMap: React.FC<DeliveryMapProps> = ({
             position={customerLocation}
             icon={{
               url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+              scaledSize: new window.google.maps.Size(30, 30),
+            }}
+          />
+        )}
+        
+        {userPosition && !customerLocation && (
+          <Marker
+            position={userPosition}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
               scaledSize: new window.google.maps.Size(30, 30),
             }}
           />

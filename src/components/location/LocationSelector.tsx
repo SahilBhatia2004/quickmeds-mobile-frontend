@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -9,55 +9,57 @@ import { useLocationStore } from "@/hooks/use-location";
 import DeliveryMap from "@/components/maps/DeliveryMap";
 import { toast } from "sonner";
 
-// Mock location search results - in a real app, this would use the Google Places API
-const mockLocationResults = [
-  {
-    description: "123 Main Street, New York, NY 10001",
-    lat: 40.7128,
-    lng: -74.006
-  },
-  {
-    description: "456 Broadway, New York, NY 10013",
-    lat: 40.7212,
-    lng: -74.0123
-  },
-  {
-    description: "789 Park Avenue, New York, NY 10021",
-    lat: 40.7681,
-    lng: -73.9634
-  }
-];
-
-interface LocationSelectorProps {
-  compact?: boolean;
-}
-
-const LocationSelector: React.FC<LocationSelectorProps> = ({ compact = false }) => {
+// We'll replace mock data with real-time geocoding in production
+const LocationSelector: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const navigate = useNavigate();
   const { userLocation, setUserLocation } = useLocationStore();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<typeof mockLocationResults>([]);
+  const [searchResults, setSearchResults] = useState<Array<{
+    description: string;
+    lat: number;
+    lng: number;
+  }>>([]);
   const [selectedLocation, setSelectedLocation] = useState<{
     lat: number;
     lng: number;
     address: string;
   } | null>(null);
   
-  const handleSearch = (query: string) => {
+  // Geocoding function (using Google Maps Geocoding API)
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (query.length > 2) {
-      // In a real app, this would call the Google Places API
-      setSearchResults(
-        mockLocationResults.filter(result => 
-          result.description.toLowerCase().includes(query.toLowerCase())
-        )
-      );
+      try {
+        // In production, this will use Google Maps Geocoding API
+        // For now, we'll simulate results for development
+        console.log("Searching for address:", query);
+        
+        // Simulated results for development
+        const mockResults = [
+          {
+            description: `${query} - Location 1`,
+            lat: 40.7128 + (Math.random() * 0.02 - 0.01),
+            lng: -74.006 + (Math.random() * 0.02 - 0.01)
+          },
+          {
+            description: `${query} - Location 2`,
+            lat: 40.7128 + (Math.random() * 0.02 - 0.01),
+            lng: -74.006 + (Math.random() * 0.02 - 0.01)
+          }
+        ];
+        
+        setSearchResults(mockResults);
+      } catch (error) {
+        console.error("Error searching for address:", error);
+        toast.error("Error searching for address. Please try again.");
+        setSearchResults([]);
+      }
     } else {
       setSearchResults([]);
     }
   };
   
-  const selectLocation = (location: typeof mockLocationResults[0]) => {
+  const selectLocation = (location: { description: string; lat: number; lng: number }) => {
     setSelectedLocation({
       lat: location.lat,
       lng: location.lng,
@@ -71,11 +73,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ compact = false }) 
     if (selectedLocation) {
       setUserLocation(selectedLocation);
       toast.success("Delivery location updated");
+      
+      // After setting location, navigate to home to see nearby pharmacies
+      if (window.location.pathname !== '/') {
+        navigate('/');
+      }
     }
   };
   
   const handleMapClick = (location: { lat: number; lng: number }) => {
-    // In a real app, we would use reverse geocoding to get the address
+    // In production, we would use reverse geocoding to get the address
     const mockAddress = `Location at ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
     setSelectedLocation({
       ...location,

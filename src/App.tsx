@@ -24,8 +24,16 @@ import VendorLogin from "./pages/VendorLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 import VendorInventory from "./pages/vendor/VendorInventory";
+import VendorOrders from "./pages/vendor/VendorOrders";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -54,6 +62,7 @@ const App = () => (
             <Route path="/vendor/login" element={<VendorLogin />} />
             <Route path="/vendor/dashboard" element={<VendorDashboard />} />
             <Route path="/vendor/inventory" element={<VendorInventory />} />
+            <Route path="/vendor/active-orders" element={<VendorOrders />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
