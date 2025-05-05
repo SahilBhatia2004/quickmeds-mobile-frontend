@@ -8,6 +8,7 @@ interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   showBackButton?: boolean;
   rightElement?: React.ReactNode;
+  action?: React.ReactNode; // Add the action prop
   className?: string;
 }
 
@@ -15,6 +16,7 @@ const PageHeader = ({
   title,
   showBackButton = false,
   rightElement,
+  action, // Add the action prop here
   className,
   ...props
 }: PageHeaderProps) => {
@@ -44,11 +46,11 @@ const PageHeader = ({
         )}
         <h1 className="font-semibold text-lg">{title}</h1>
       </div>
-      {rightElement && (
+      {action || rightElement ? (
         <div>
-          {rightElement}
+          {action || rightElement}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

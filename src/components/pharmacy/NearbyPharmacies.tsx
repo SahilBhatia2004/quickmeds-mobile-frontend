@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Clock } from "lucide-react";
 import { useLocationStore, isWithinDeliveryRadius } from '@/hooks/use-location';
 
@@ -20,18 +20,24 @@ const NearbyPharmacies = () => {
             pharmacy.deliveryRadius
           )
         )
-        .map(pharmacy => ({
-          ...pharmacy,
-          distance: Math.round(
-            isWithinDeliveryRadius(
-              userLocation.lat,
-              userLocation.lng,
-              pharmacy.lat,
-              pharmacy.lng,
-              Infinity
-            ) / 1000 * 10
-          ) / 10 // Round to 1 decimal
-        }))
+        .map(pharmacy => {
+          // Calculate distance in kilometers with proper type handling
+          const distanceInMeters = isWithinDeliveryRadius(
+            userLocation.lat,
+            userLocation.lng,
+            pharmacy.lat,
+            pharmacy.lng,
+            Infinity
+          );
+          
+          // Convert to km with one decimal place
+          const distanceInKm = Math.round((distanceInMeters / 1000) * 10) / 10;
+          
+          return {
+            ...pharmacy,
+            distance: distanceInKm
+          };
+        })
         .sort((a, b) => a.distance - b.distance);
 
       setAvailablePharmacies(pharmaciesInRange);
